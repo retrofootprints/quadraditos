@@ -73,6 +73,9 @@ export function PaletteList() {
           <div class="empty">
             <div><b>No palettes yet</b><div class="muted">A palette is the set of paints, inks or pencils you own. Photograph a sheet of swatches to create one.</div></div>
             <button class="btn primary" onClick={() => setCreating(true)}><IconPlus /> New palette</button>
+            {presets.map((pr) => (
+              <button key={pr.key} class="btn" onClick={() => void addPreset(pr)}>Add built-in: {pr.name}</button>
+            ))}
           </div>
         ) : (
           <div class="stack">
