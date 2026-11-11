@@ -1,6 +1,7 @@
 import { useRef, useState } from 'preact/hooks';
 import type { Palette } from '../../core/types';
 import { newPalette } from '../../core/palette';
+import { paletteFromPreset, presets, type Preset } from '../../core/presets';
 import {
   applyImport, duplicatePalette, exportPalettesJson, palettes, prepareImport, removePalette, savePalette, setActive, settings,
 } from '../../storage/store';
@@ -52,6 +53,12 @@ export function PaletteList() {
     navigate({ tab: 'palettes', view: { kind: 'edit', id: p.id } });
   };
 
+  const addPreset = async (preset: Preset) => {
+    const p = await savePalette(paletteFromPreset(preset));
+    setCreating(false);
+    showToast(`Added “${p.name}” (${p.colors.length} colours)`);
+  };
+
   return (
     <>
       <div class="topbar">
@@ -96,6 +103,17 @@ export function PaletteList() {
           <div class="actions">
             <button class="btn primary" onClick={() => navigate({ tab: 'palettes', view: { kind: 'extract' } })}>From swatch sheet</button>
             <button class="btn" onClick={() => void createEmpty()}>Empty (add colours by hand)</button>
+          </div>
+          <div class="muted small" style={{ margin: '12px 0 6px' }}>Built-in presets</div>
+          <div class="actions">
+            {presets.map((pr) => (
+              <button key={pr.key} class="btn" onClick={() => void addPreset(pr)}>
+                <span class="chips" style={{ marginRight: 8 }}>
+                  {pr.colors.slice(0, 6).map((c) => <span key={c.hex} class="chip" style={{ background: c.hex }} />)}
+                </span>
+                {pr.name} ({pr.colors.length})
+              </button>
+            ))}
           </div>
         </Sheet>
       )}

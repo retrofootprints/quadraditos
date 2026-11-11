@@ -97,3 +97,15 @@ describe('palette helpers', () => {
     expect(dup.has(c.id)).toBe(false);
   });
 });
+
+import { paletteFromPreset, presets } from '../src/core/presets';
+describe('built-in presets', () => {
+  it('build valid palettes with unique codes and parsed colours', () => {
+    for (const pr of presets) {
+      const p = paletteFromPreset(pr);
+      expect(p.colors.length).toBe(pr.colors.length);
+      expect(new Set(p.colors.map((c) => c.code)).size).toBe(p.colors.length);
+      for (const c of p.colors) expect(c.lab.every(Number.isFinite)).toBe(true);
+    }
+  });
+});
