@@ -9,6 +9,8 @@ export function CropEditor() {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; zoom: number } | null>(null);
   const p = photo.value;
   const src = sourcePreview.value;
   const crop = settings.value.studio.crop;
@@ -29,7 +31,36 @@ export function CropEditor() {
   const dh = aspect > availW / availH ? availW / aspect : availH;
   const rect = cropRect(crop, p.width, p.height) ?? { x: 0, y: 0, w: 1, h: 1 };
 
+  const spread = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  const down = (e: PointerEvent) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      drag.current = null;
+      pinch.current = { dist: Math.max(1, spread()), zoom: settings.value.studio.crop.zoom };
+    } else if (pointers.current.size === 1) drag.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const up = (e: PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    pinch.current = null;
+    // lifting one finger of a pinch continues as a drag with the other
+    const rest = [...pointers.current.values()][0];
+    drag.current = rest ? { ...rest } : null;
+  };
+
   const move = (e: PointerEvent) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size >= 2) {
+      // spreading the fingers zooms in, which makes the crop window smaller
+      const zoom = Math.min(4, Math.max(1, pinch.current.zoom * (spread() / pinch.current.dist)));
+      updateStudio({ crop: { ...settings.value.studio.crop, zoom } });
+      return;
+    }
     if (!drag.current) return;
     const dx = (e.clientX - drag.current.x) / dw;
     const dy = (e.clientY - drag.current.y) / dh;
@@ -47,16 +78,13 @@ export function CropEditor() {
       class="zoompan"
       ref={box}
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onPointerDown={(e) => {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        drag.current = { x: e.clientX, y: e.clientY };
-      }}
+      onPointerDown={down}
       onPointerMove={move}
-      onPointerUp={() => (drag.current = null)}
-      onPointerCancel={() => (drag.current = null)}
+      onPointerUp={up}
+      onPointerCancel={up}
     >
       <div style={{ position: 'relative', width: `${dw}px`, height: `${dh}px` }}>
-        <RgbaCanvas img={src} />
+        <div class="crop-image"><RgbaCanvas img={src} /></div>
         <div
           style={{
             position: 'absolute',
@@ -71,7 +99,7 @@ export function CropEditor() {
           }}
         />
       </div>
-      <div class="floating-note">Drag to move the crop window</div>
+      <div class="floating-note">Drag to move · pinch to resize the crop</div>
     </div>
   );
 }
